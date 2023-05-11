@@ -14,9 +14,9 @@ export default function App() {
   const [operator, setOperator] = useState('');
 
   useEffect(() => {
-    const _screen = number1 + operator + number2;
-    setScreen(_screen);
-  },[number1, number2, operator]);
+    const screenUpdated = number1 + operator + number2;
+    setScreen(screenUpdated);
+  }, [number1, number2, operator]);
 
   const handlerScreen = useCallback((value) => {
     const lastCharacter = parseInt(screen.slice(-1));
@@ -46,13 +46,14 @@ export default function App() {
           break;
       }
       setNumber(newCurrentNumber);
-      //setScreen(newScreen + value);
       setScreenState(newState);
     }
   }, [screen, screenState, number1, number2, number, operator, resetFields, handlerScreenState]);
 
   const validarCaractere = (value, lastCharacter, currentNumber, isResultState) => {
-    if (value === 0 && !existNumber(currentNumber)) {
+    console.log(currentNumber);
+    console.log(lastCharacter);
+    if (value === 0 && parseInt(lastCharacter) === 0 && currentNumber === '0') {
       return false;
     }
     if (value === '.' && currentNumber.includes('.')) {
@@ -68,34 +69,52 @@ export default function App() {
   };
 
   const resetFields = () => {
-    setScreen('');
-    setScreen2('');
     setNumber1('');
     setNumber2('');
+    setNumber('');
     setOperator('');
+    setScreen2('');
+    setScreenState(State.number1);
+  };
+
+  const isValid = (number1, number2, operator) => {
+    if (number1 === 0 || number1 === '' || !existNumber(number1)) {
+      return false;
+    }
+    if (number2 === 0 || number2 === '' || !existNumber(number2)) {
+      return false;
+    }
+    if (operator === '' || !existNumber(operator)) {
+      return false;
+    }
+    if (operator === Operator.dividir && parseFloat(number2) === 0) {
+      return false;
+    }
+    return true;
   };
 
   const calcular = useCallback(() => {
     let result = 0;
-    switch (operator) {
-      case Operator.somar:
-        result = somar(number1, number2);
-        break;
-      case Operator.subtrair:
-        result = subtrair(number1, number2);
-        break;
-      case Operator.multiplicar:
-        result = multiplicar(number1, number2);
-        break;
-      case Operator.dividir:
-        result = dividir(number1, number2);
-        break;
+    if (screenState !== State.result && isValid(number1, number2, operator)) {
+      switch (operator) {
+        case Operator.somar:
+          result = somar(number1, number2);
+          break;
+        case Operator.subtrair:
+          result = subtrair(number1, number2);
+          break;
+        case Operator.multiplicar:
+          result = multiplicar(number1, number2);
+          break;
+        case Operator.dividir:
+          result = dividir(number1, number2);
+          break;
+      }
+      const resultToScreen = Number.isInteger(result) ? result.toString() : result.toFixed(2).toString();
+      setScreen2(screen);
+      setScreen(resultToScreen);
+      setScreenState(State.result);
     }
-    const resultToScreen = Number.isInteger(result) ? result.toString() : result.toFixed(2).toString();
-    console.log(screen);
-    setScreen2(screen);
-    setScreen(resultToScreen);
-    setScreenState(State.result);
   }, [operator, number1, number2, screen]);
 
   const somar = (value1, value2) => { return parseFloat(value1) + parseFloat(value2) }
@@ -121,10 +140,8 @@ export default function App() {
   const deleteLastCharacter = useCallback(() => {
     const isResultState = screenState == State.result;
     if (!isResultState) {
-      //setScreen(screen.slice(0, -1));
       switch (screenState) {
         case State.number1:
-          console.log(number1);
           setNumber1(number1.slice(0, -1));
           break;
         case State.number2:
@@ -151,7 +168,6 @@ export default function App() {
       var _number1 = changeNumber(number1);
       setNumber1(_number1);
       setNumber(_number1);
-      //setScreen(_number1);
     }
   }, [number1, number2, operator]);
 
@@ -181,9 +197,10 @@ export default function App() {
       <View style={styles.keyboard}>
         <View style={styles.rows}>
           <KeyboardButton
-            title={"AC"}
+            title={screen === '' ? "AC" : "C"}
             stylesCustom={styles.textCyan}
-            onClickHandler={() => { console.log('teste') }}
+            onClickHandler={() => { resetFields() }}
+            disabled={screen === ''}
           />
           <KeyboardButton
             title={<>

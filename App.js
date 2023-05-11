@@ -14,35 +14,46 @@ export default function App() {
   const [operator, setOperator] = useState('');
 
   useEffect(() => {
-    const screenUpdated = number1 + operator + number2;
+    const _number2 = number2.includes('-') ? ("(" + number2 + ")") : number2;
+    const screenUpdated = number1 + operator + _number2;
     setScreen(screenUpdated);
   }, [number1, number2, operator]);
 
-  const handlerScreen = useCallback((value) => {
+  const handlerOperatorScreen = useCallback((value) => {
+    const lastCharacter = parseInt(screen.slice(-1));
+    const isValid = validarOperator(lastCharacter);
+    if (isValid) {
+      const isValidCalculo = validarCalculo(number1, number2, operator);
+      if (isValidCalculo) {
+        calcular();
+      }
+      setOperator(value);
+      setScreenState(State.operator);
+      setNumber('');
+      setScreen2('');
+      return;
+    }
+    if (screenState === State.operator) {
+      setOperator(value);
+    }
+  }, [screen, screenState, number1, number2, operator, calcular, validarOperator])
+
+  const handlerNumberScreen = useCallback((value) => {
     const lastCharacter = parseInt(screen.slice(-1));
     const currentNumber = number;
     const isResultState = screenState === State.result;
-    if (validarCaractere(value, lastCharacter, currentNumber, isResultState)) {
-      var newScreen = screen;
+    const isValid = validarCaractere(value, lastCharacter, currentNumber, isResultState);
+    if (isValid) {
       let newState = handlerScreenState(value);
-      let newNumber1 = number1;
+      let newNumber1 = number1 + value;
+      let newNumber2 = number2 + value;
       var newCurrentNumber = currentNumber + value;
-      if (isResultState) {
-        newScreen = '';
-        newNumber1 = '';
-        newCurrentNumber = '' + value;
-        resetFields();
-      }
       switch (newState) {
         case State.number1:
-          setNumber1(newNumber1 + value);
+          setNumber1(newNumber1);
           break;
         case State.number2:
-          setNumber2(number2 + value);
-          break;
-        case State.operator:
-          setOperator(value);
-          newCurrentNumber = '';
+          setNumber2(newNumber2);
           break;
       }
       setNumber(newCurrentNumber);
@@ -51,8 +62,6 @@ export default function App() {
   }, [screen, screenState, number1, number2, number, operator, resetFields, handlerScreenState]);
 
   const validarCaractere = (value, lastCharacter, currentNumber, isResultState) => {
-    console.log(currentNumber);
-    console.log(lastCharacter);
     if (value === 0 && parseInt(lastCharacter) === 0 && currentNumber === '0') {
       return false;
     }
@@ -62,11 +71,18 @@ export default function App() {
     if (screen.length >= 9) {
       return false;
     }
-    if (!Number.isInteger(value) && (!Number.isInteger(lastCharacter) || isResultState)) {
-      return false;
+    if (!Number.isInteger(value)) {
+      return validarOperator(lastCharacter, isResultState);
     }
     return true;
   };
+
+  const validarOperator = (lastCharacter) => {
+    if (!Number.isInteger(lastCharacter)) {
+      return false;
+    }
+    return true;
+  }
 
   const resetFields = () => {
     setNumber1('');
@@ -77,7 +93,7 @@ export default function App() {
     setScreenState(State.number1);
   };
 
-  const isValid = (number1, number2, operator) => {
+  const validarCalculo = (number1, number2, operator) => {
     if (number1 === 0 || number1 === '' || !existNumber(number1)) {
       return false;
     }
@@ -95,7 +111,7 @@ export default function App() {
 
   const calcular = useCallback(() => {
     let result = 0;
-    if (screenState !== State.result && isValid(number1, number2, operator)) {
+    if (screenState !== State.result && validarCalculo(number1, number2, operator)) {
       switch (operator) {
         case Operator.somar:
           result = somar(number1, number2);
@@ -111,9 +127,11 @@ export default function App() {
           break;
       }
       const resultToScreen = Number.isInteger(result) ? result.toString() : result.toFixed(2).toString();
+      resetFields();
       setScreen2(screen);
-      setScreen(resultToScreen);
-      setScreenState(State.result);
+      setNumber1(resultToScreen);
+      setNumber(resultToScreen);
+      return resultToScreen;
     }
   }, [operator, number1, number2, screen]);
 
@@ -121,6 +139,23 @@ export default function App() {
   const subtrair = (value1, value2) => { return parseFloat(value1) - parseFloat(value2) }
   const multiplicar = (value1, value2) => { return parseFloat(value1) * parseFloat(value2) }
   const dividir = (value1, value2) => { return parseFloat(value1) / parseFloat(value2) }
+
+  const porcentagem = useCallback(() => {
+    const lastCharacter = parseInt(screen.slice(-1));
+    const isValid = validarOperator(lastCharacter);
+    if (isValid) {
+      let newNumber1 = number1;
+      const isValidCalculo = validarCalculo(number1, number2, operator);
+      if (isValidCalculo) {
+        newNumber1 = calcular();
+      }
+      let result = parseFloat(newNumber1) / 100;
+      const resultToScreen = Number.isInteger(result) ? result.toString() : result.toFixed(2).toString();
+      resetFields();
+      setNumber1(resultToScreen);
+      setNumber(resultToScreen);
+    }
+  }, [number1, number2, screen, calcular]);
 
   const handlerScreenState = useCallback((value) => {
     var _state = screenState;
@@ -190,7 +225,13 @@ export default function App() {
         </View>
         <View style={[styles.rows, { flex: 3 }]}>
           <Text style={[styles.text, { marginRight: 10, fontSize: 60, fontWeight: "bold", letterSpacing: 5 }]}>
-            {screen}
+            {number1}
+          </Text>
+          <Text style={[styles.textRed, { marginRight: 10, fontSize: 60, fontWeight: "bold", letterSpacing: 5 }]}>
+            {operator}
+          </Text>
+          <Text style={[styles.text, { marginRight: 10, fontSize: 60, fontWeight: "bold", letterSpacing: 5 }]}>
+            {number2.includes('-') ? ("(" + number2 + ")") : number2}
           </Text>
         </View>
       </View>
@@ -210,70 +251,72 @@ export default function App() {
             onClickHandler={() => changeNumberSign()}
             disabled={screenState !== State.number1 && screenState !== State.number2}
           />
-          <View style={styles.button}>
-            <Text style={[styles.text, { color: "cyan" }]}>%</Text>
-          </View>
+          <KeyboardButton
+            title={Operator.porcentagem}
+            stylesCustom={styles.textCyan}
+            onClickHandler={() => { porcentagem() }}
+          />
           <KeyboardButton
             title={'/'}
             stylesCustom={styles.textRed}
-            onClickHandler={() => handlerScreen(Operator.dividir)}
+            onClickHandler={() => handlerOperatorScreen(Operator.dividir)}
           />
         </View>
         <View style={styles.rows}>
           <KeyboardButton
             title={7}
-            onClickHandler={() => handlerScreen(7)}
+            onClickHandler={() => handlerNumberScreen(7)}
           />
           <KeyboardButton
             title={8}
-            onClickHandler={() => handlerScreen(8)}
+            onClickHandler={() => handlerNumberScreen(8)}
           />
           <KeyboardButton
             title={9}
-            onClickHandler={() => handlerScreen(9)}
+            onClickHandler={() => handlerNumberScreen(9)}
           />
           <KeyboardButton
             title={'x'}
             stylesCustom={styles.textRed}
-            onClickHandler={() => handlerScreen(Operator.multiplicar)}
+            onClickHandler={() => handlerOperatorScreen(Operator.multiplicar)}
           />
         </View>
         <View style={styles.rows}>
           <KeyboardButton
             title={4}
-            onClickHandler={() => handlerScreen(4)}
+            onClickHandler={() => handlerNumberScreen(4)}
           />
           <KeyboardButton
             title={5}
-            onClickHandler={() => handlerScreen(5)}
+            onClickHandler={() => handlerNumberScreen(5)}
           />
           <KeyboardButton
             title={6}
-            onClickHandler={() => handlerScreen(6)}
+            onClickHandler={() => handlerNumberScreen(6)}
           />
           <KeyboardButton
             title={'-'}
             stylesCustom={styles.textRed}
-            onClickHandler={() => handlerScreen(Operator.subtrair)}
+            onClickHandler={() => handlerOperatorScreen(Operator.subtrair)}
           />
         </View>
         <View style={styles.rows}>
           <KeyboardButton
             title={1}
-            onClickHandler={() => handlerScreen(1)}
+            onClickHandler={() => handlerNumberScreen(1)}
           />
           <KeyboardButton
             title={2}
-            onClickHandler={() => handlerScreen(2)}
+            onClickHandler={() => handlerNumberScreen(2)}
           />
           <KeyboardButton
             title={3}
-            onClickHandler={() => handlerScreen(3)}
+            onClickHandler={() => handlerNumberScreen(3)}
           />
           <KeyboardButton
             title={'+'}
             stylesCustom={styles.textRed}
-            onClickHandler={() => handlerScreen(Operator.somar)}
+            onClickHandler={() => handlerOperatorScreen(Operator.somar)}
           />
         </View>
         <View style={styles.rows}>
@@ -283,11 +326,11 @@ export default function App() {
           />
           <KeyboardButton
             title={0}
-            onClickHandler={() => handlerScreen(0)}
+            onClickHandler={() => handlerNumberScreen(0)}
           />
           <KeyboardButton
             title={'.'}
-            onClickHandler={() => handlerScreen('.')} />
+            onClickHandler={() => handlerNumberScreen('.')} />
           <KeyboardButton
             title={'='}
             stylesCustom={styles.textRed}

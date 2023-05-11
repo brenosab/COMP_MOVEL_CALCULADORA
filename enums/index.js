@@ -8,5 +8,6 @@ export const Operator = {
     somar: '+',
     subtrair: '-',
     multiplicar: 'x',
-    dividir: '/'
+    dividir: '/',
+    porcentagem: '%'
 };
